@@ -35,7 +35,7 @@ const emptyForm: DriverForm = {
   phone: "",
   vehicle: "",
   status: "active",
-  accessCode: "2005", // قيمة فارغة عند البدء
+  accessCode: "2005S", // قيمة فارغة عند البدء
 };
 
 export default function DriversPage() {
