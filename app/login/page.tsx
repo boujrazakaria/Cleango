@@ -1,84 +1,118 @@
-"use client";
+'use client';
+import { useState } from 'react';
+// استيراد الـ LanguageContext الخاص بك (تأكد من المسار الصحيح حسب مشروعك)
+// import { useLanguage } from '@/app/context/LanguageContext'; 
 
-import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { getAuth } from "firebase/auth";
-import app from "../../firebase.ts/firebase";
-import { useLanguage } from "../context/LanguageContext";
+export default function DriversPage() {
+  // const { language } = useLanguage(); // مفعلة إذا كان السياق جاهزاً
 
-const auth = getAuth(app);
+  // حالة لتخزين السائقين مع إمكانية التعديل والحذف
+  const [drivers, setDrivers] = useState([
+    { id: 1, name: 'أحمد الإدريسي', phone: '+212 600-000000', status: 'نشط', vehicle: 'دراجة نارية' },
+    { id: 2, name: 'يوسف العمراني', phone: '+212 611-111111', status: 'في مهمة', vehicle: 'سيارة توصيل' },
+  ]);
 
-export default function LoginPage() {
-  const { t, dir } = useLanguage();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [messageKey, setMessageKey] = useState<"loginSuccess" | "invalidCredentials" | "">("");
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // دالة لإضافة سائق جديد
+  const handleAddDriver = () => {
+    if (!newName || !newPhone) return;
+    const newDriver = {
+      id: Date.now(),
+      name: newName,
+      phone: newPhone,
+      status: 'نشط',
+      vehicle: 'دراجة نارية'
+    };
+    setDrivers([...drivers, newDriver]);
+    setNewName('');
+    setNewPhone('');
+  };
 
-    try {
-      await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-
-      setMessageKey("loginSuccess");
-    } catch {
-      setMessageKey("invalidCredentials");
-    }
+  // دالة لحذف سائق
+  const handleDeleteDriver = (id: number) => {
+    setDrivers(drivers.filter(driver => driver.id !== id));
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center px-6" dir={dir}>
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-lg">
+    <div className="min-h-screen bg-gray-50 p-6 md:p-10" dir="rtl">
+      <div className="max-w-6xl mx-auto">
+        {/* رأس الصفحة */}
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">إدارة السائقين (Drivers)</h1>
+            <p className="text-gray-500 mt-1">متابعة وعرض حالة السائقين وتفاصيل التوصيل في منصة CleanGo</p>
+          </div>
+          
+          {/* نموذج سري لإضافة سائق للتجربة */}
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="اسم السائق" 
+              value={newName} 
+              onChange={(e) => setNewName(e.target.value)}
+              className="border px-3 py-2 rounded-lg text-sm"
+            />
+            <input 
+              type="text" 
+              placeholder="رقم الهاتف" 
+              value={newPhone} 
+              onChange={(e) => setNewPhone(e.target.value)}
+              className="border px-3 py-2 rounded-lg text-sm"
+            />
+            <button 
+              onClick={handleAddDriver}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow transition text-sm">
+              + إضافة سائق
+            </button>
+          </div>
+        </div>
 
-        <h1 className="text-3xl font-bold text-center">
-          {t.welcomeBack}
-        </h1>
-
-        <p className="mt-2 text-center text-gray-500">
-          {t.welcomeSubtitle}
-        </p>
-
-        <form
-          onSubmit={handleLogin}
-          className="mt-8 space-y-4"
-        >
-          <input
-            type="email"
-            placeholder={t.email}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border p-3 outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-
-          <input
-            type="password"
-            placeholder={t.password}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border p-3 outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-
-          <button
-            type="submit"
-            className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700"
-          >
-            {t.loginButton}
-          </button>
-        </form>
-
-        {messageKey && (
-          <p className="mt-5 text-center text-sm text-gray-600">
-            {t[messageKey]}
-          </p>
-        )}
-
+        {/* جدول عرض السائقين */}
+        <div className="bg-white rounded-xl shadow overflow-hidden border border-gray-100">
+          <table className="w-full text-right border-collapse">
+            <thead className="bg-gray-100 text-gray-600 text-sm uppercase">
+              <tr>
+                <th className="py-3 px-6">اسم السائق</th>
+                <th className="py-3 px-6">رقم الهاتف</th>
+                <th className="py-3 px-6">نوع المركبة</th>
+                <th className="py-3 px-6">الحالة</th>
+                <th className="py-3 px-6">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 text-gray-700">
+              {drivers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-gray-400">لا يوجد سائقون حالياً</td>
+                </tr>
+              ) : (
+                drivers.map((driver) => (
+                  <tr key={driver.id} className="hover:bg-gray-50">
+                    <td className="py-4 px-6 font-medium">{driver.name}</td>
+                    <td className="py-4 px-6">{driver.phone}</td>
+                    <td className="py-4 px-6">{driver.vehicle}</td>
+                    <td className="py-4 px-6">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        driver.status === 'نشط' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {driver.status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <button 
+                        onClick={() => handleDeleteDriver(driver.id)}
+                        className="text-red-600 hover:underline text-sm font-medium">
+                        حذف
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
