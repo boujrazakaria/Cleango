@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getFirestore, setDoc, doc } from "firebase/firestore";
 import app from "../../firebase.ts/firebase";
+import { useLanguage } from "../context/LanguageContext";
 
 const db = getFirestore(app);
 
@@ -39,6 +40,8 @@ const allServices = [
 ];
 
 export default function SeedPage() {
+  const { t, dir } = useLanguage();
+  const pageText = t.pages;
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [successCount, setSuccessCount] = useState(0);
@@ -47,7 +50,7 @@ export default function SeedPage() {
 
   const addServices = async () => {
     setLoading(true);
-    setMessage("⏳ جاري الإضافة...");
+    setMessage(`⏳ ${pageText.seedAdding}`);
     setLogs([]);
     setSuccessCount(0);
     setErrorCount(0);
@@ -63,10 +66,10 @@ export default function SeedPage() {
           createdAt: new Date().toISOString(),
         });
         success++;
-        setLogs((prev) => [...prev, `✅ ${service.name} (${service.price} درهم)`]);
+        setLogs((prev) => [...prev, `✅ ${service.name} (${service.price} ${pageText.currency})`]);
       } catch (error: unknown) {
         errors++;
-        const errorMessage = error instanceof Error ? error.message : "خطأ غير معروف";
+        const errorMessage = error instanceof Error ? error.message : pageText.seedUnknownError;
         setLogs((prev) => [...prev, `❌ ${service.name}: ${errorMessage}`]);
       }
     }
@@ -76,30 +79,30 @@ export default function SeedPage() {
     setLoading(false);
     setMessage(
       errors === 0
-        ? `✅ تم إضافة ${success} خدمة بنجاح!`
-        : `⚠️ تم إضافة ${success} خدمة، فشل ${errors} خدمة.`
+        ? `✅ ${pageText.seedSuccess}`
+        : `⚠️ ${pageText.seedPartial}`
     );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4" dir={dir}>
       <div className="bg-white rounded-3xl shadow-xl max-w-2xl w-full p-8">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            🧺 إضافة خدمات مصبنة &quot;دار السلام&quot;
+            🧺 {pageText.seedTitle}
           </h1>
           <p className="text-gray-500 mt-2">
-            عدد الخدمات: <span className="font-bold text-blue-600">{allServices.length}</span>
+            {pageText.seedServiceCount} <span className="font-bold text-blue-600">{allServices.length}</span>
           </p>
         </div>
 
         <div className="bg-gray-50 rounded-xl p-4 mb-6 max-h-60 overflow-y-auto">
-          <p className="text-sm font-semibold text-gray-700 mb-2">📋 قائمة الخدمات:</p>
+          <p className="text-sm font-semibold text-gray-700 mb-2">📋 {pageText.seedList}</p>
           <div className="grid grid-cols-2 gap-1 text-sm">
             {allServices.map((s, i) => (
               <div key={i} className="flex justify-between border-b border-gray-100 py-1">
                 <span>{s.icon} {s.name}</span>
-                <span className="font-medium text-blue-600">{s.price} درهم</span>
+                <span className="font-medium text-blue-600">{s.price} {pageText.currency}</span>
               </div>
             ))}
           </div>
@@ -114,7 +117,7 @@ export default function SeedPage() {
               : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-2xl"
           }`}
         >
-          {loading ? "⏳ جاري الإضافة..." : "🚀 إضافة جميع الخدمات"}
+          {loading ? `⏳ ${pageText.seedAdding}` : `🚀 ${pageText.seedAddAll}`}
         </button>
 
         {message && (
@@ -141,7 +144,7 @@ export default function SeedPage() {
 
         {successCount > 0 && errorCount === 0 && (
           <div className="mt-4 text-center text-sm text-green-600">
-            ✅ تمت إضافة جميع الخدمات بنجاح! يمكنك الآن العودة إلى الصفحة الرئيسية.
+            ✅ {pageText.seedSuccessNote}
           </div>
         )}
       </div>

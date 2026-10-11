@@ -12,7 +12,7 @@ export default function LoginPage() {
   const { t, dir } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [messageKey, setMessageKey] = useState<"loginSuccess" | "invalidCredentials" | "">("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,9 +24,9 @@ export default function LoginPage() {
         password
       );
 
-      setMessage(t.loginSuccess);
+      setMessageKey("loginSuccess");
     } catch {
-      setMessage(t.invalidCredentials);
+      setMessageKey("invalidCredentials");
     }
   };
 
@@ -72,9 +72,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {message && (
+        {messageKey && (
           <p className="mt-5 text-center text-sm text-gray-600">
-            {message}
+            {t[messageKey]}
           </p>
         )}
 

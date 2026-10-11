@@ -18,6 +18,7 @@ import {
 } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import app from "../../firebase.ts/firebase";
+import { useLanguage } from "../context/LanguageContext";
 import { 
   Package, 
   Clock,
@@ -71,6 +72,8 @@ type Order = {
 
 export default function AdminPage() {
   const router = useRouter();
+  const { t, dir } = useLanguage();
+  const pageText = t.pages;
   const [orders, setOrders] = useState<Order[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -172,32 +175,32 @@ export default function AdminPage() {
       form.reset();
     } catch (error) {
       console.error("Error adding service:", error);
-      alert("تعذر إضافة الخدمة");
+      alert(pageText.addServiceError);
     }
   };
 
   const deleteService = async (id: string) => {
-    if (!confirm("هل أنت متأكد من حذف هذه الخدمة؟")) return;
+    if (!confirm(pageText.deleteServiceConfirm)) return;
 
     try {
       await deleteDoc(doc(db, "services", id));
     } catch (error) {
       console.error("Error deleting service:", error);
-      alert("تعذر حذف الخدمة");
+      alert(t.orderError);
     }
   };
 
   const editService = async (service: Service) => {
-    const name = prompt("اسم الخدمة", service.name);
+    const name = prompt(pageText.editNamePrompt, service.name);
     if (name === null) return;
 
-    const price = prompt("السعر", String(service.price));
+    const price = prompt(pageText.editPricePrompt, String(service.price));
     if (price === null) return;
 
-    const category = prompt("التصنيف", service.category);
+    const category = prompt(pageText.editCategoryPrompt, service.category);
     if (category === null) return;
 
-    const unit = prompt("الوحدة", service.unit);
+    const unit = prompt(pageText.editUnitPrompt, service.unit);
     if (unit === null) return;
 
     try {
@@ -209,7 +212,7 @@ export default function AdminPage() {
       });
     } catch (error) {
       console.error("Error editing service:", error);
-      alert("تعذر تعديل الخدمة");
+      alert(t.orderError);
     }
   };
 
@@ -228,7 +231,7 @@ export default function AdminPage() {
       console.log(`✅ Order ${id} updated to ${newStatus}`);
     } catch (error) {
       console.error("❌ Error updating order:", error);
-      alert("Failed to update order status.");
+      alert(pageText.orderStatusError);
     } finally {
       setUpdating(null);
     }
@@ -238,7 +241,7 @@ export default function AdminPage() {
   const deleteOrder = async (id: string) => {
     if (!id) return;
 
-    if (!confirm("⚠️ Are you sure you want to delete this order?")) return;
+    if (!confirm(`⚠️ ${pageText.deleteOrderConfirm}`)) return;
 
     try {
       const orderRef = doc(db, "orders", id);
@@ -246,7 +249,7 @@ export default function AdminPage() {
       console.log(`✅ Order ${id} deleted successfully`);
     } catch (error) {
       console.error("❌ Error deleting order:", error);
-      alert("Failed to delete order.");
+      alert(pageText.deleteOrderError);
     }
   };
 
@@ -266,11 +269,11 @@ export default function AdminPage() {
   // Get status badge
   const getStatusInfo = (status: string) => {
     const statusMap: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-      Pending: { color: "bg-yellow-100 text-yellow-800", icon: <Clock className="w-4 h-4" />, label: "Pending" },
-      Pickup: { color: "bg-blue-100 text-blue-800", icon: <Truck className="w-4 h-4" />, label: "Pickup" },
-      Cleaning: { color: "bg-purple-100 text-purple-800", icon: <Sparkles className="w-4 h-4" />, label: "Cleaning" },
-      Ready: { color: "bg-green-100 text-green-800", icon: <CheckCircle className="w-4 h-4" />, label: "Ready" },
-      Delivered: { color: "bg-gray-100 text-gray-800", icon: <Package className="w-4 h-4" />, label: "Delivered" },
+      Pending: { color: "bg-yellow-100 text-yellow-800", icon: <Clock className="w-4 h-4" />, label: pageText.statusPending },
+      Pickup: { color: "bg-blue-100 text-blue-800", icon: <Truck className="w-4 h-4" />, label: pageText.statusPickup },
+      Cleaning: { color: "bg-purple-100 text-purple-800", icon: <Sparkles className="w-4 h-4" />, label: pageText.statusCleaning },
+      Ready: { color: "bg-green-100 text-green-800", icon: <CheckCircle className="w-4 h-4" />, label: pageText.statusReady },
+      Delivered: { color: "bg-gray-100 text-gray-800", icon: <Package className="w-4 h-4" />, label: pageText.statusDelivered },
     };
     return statusMap[status] || statusMap.Pending;
   };
@@ -287,7 +290,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Loading admin dashboard...</p>
+          <p className="mt-4 text-gray-600 font-medium">{pageText.adminLoading}</p>
         </div>
       </div>
     );
@@ -298,7 +301,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50" dir={dir}>
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -309,9 +312,9 @@ export default function AdminPage() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  👑 لوحة التحكم
+                  👑 {pageText.adminTitle}
                 </h1>
-                <p className="text-sm text-gray-500">إدارة جميع الطلبات والخدمات</p>
+                <p className="text-sm text-gray-500">{pageText.adminSubtitle}</p>
               </div>
             </div>
             <button
@@ -319,7 +322,7 @@ export default function AdminPage() {
               className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm font-medium transition"
             >
               <LogOut className="w-4 h-4" />
-              خروج
+              {t.logout}
             </button>
           </div>
         </div>
@@ -328,33 +331,33 @@ export default function AdminPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard title="إجمالي الطلبات" value={totalOrders} icon={<Package className="w-5 h-5" />} color="blue" />
-          <StatCard title="قيد الانتظار" value={pendingOrders} icon={<Clock className="w-5 h-5" />} color="yellow" />
-          <StatCard title="قيد المعالجة" value={inProgressOrders} icon={<RefreshCw className="w-5 h-5" />} color="purple" />
-          <StatCard title="مكتملة" value={completedOrders} icon={<CheckCircle className="w-5 h-5" />} color="green" />
+          <StatCard title={pageText.totalOrders} value={totalOrders} icon={<Package className="w-5 h-5" />} color="blue" />
+          <StatCard title={pageText.pendingOrders} value={pendingOrders} icon={<Clock className="w-5 h-5" />} color="yellow" />
+          <StatCard title={pageText.inProgressOrders} value={inProgressOrders} icon={<RefreshCw className="w-5 h-5" />} color="purple" />
+          <StatCard title={pageText.completedOrders} value={completedOrders} icon={<CheckCircle className="w-5 h-5" />} color="green" />
         </div>
 
         {/* Service Management */}
         <div className="mt-8">
-          <h2 className="text-2xl font-bold mb-4">🧺 إدارة الخدمات</h2>
+          <h2 className="text-2xl font-bold mb-4">🧺 {pageText.manageServices}</h2>
 
           <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
-            <h3 className="font-semibold mb-4">➕ إضافة خدمة جديدة</h3>
+            <h3 className="font-semibold mb-4">➕ {pageText.addNewService}</h3>
             <form onSubmit={addService} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input type="text" name="name" placeholder="اسم الخدمة" required className="rounded-xl border p-3" />
-              <input type="number" name="price" placeholder="السعر" min="0" required className="rounded-xl border p-3" />
-              <input type="text" name="category" placeholder="التصنيف (ملابس/مفروشات)" required className="rounded-xl border p-3" />
-              <input type="text" name="unit" placeholder="الوحدة (قطعة/متر)" required className="rounded-xl border p-3" />
-              <textarea name="description" placeholder="وصف الخدمة" className="rounded-xl border p-3 col-span-full" />
+              <input type="text" name="name" placeholder={pageText.serviceName} required className="rounded-xl border p-3" />
+              <input type="number" name="price" placeholder={pageText.price} min="0" required className="rounded-xl border p-3" />
+              <input type="text" name="category" placeholder={pageText.categoryExample} required className="rounded-xl border p-3" />
+              <input type="text" name="unit" placeholder={pageText.unitExample} required className="rounded-xl border p-3" />
+              <textarea name="description" placeholder={pageText.serviceDescription} className="rounded-xl border p-3 col-span-full" />
               <button type="submit" className="col-span-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition">
-                ➕ إضافة الخدمة
+                ➕ {pageText.addService}
               </button>
             </form>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {services.map((service) => (
-              <ServiceCard key={service.id} service={service} onDelete={deleteService} onEdit={editService} />
+              <ServiceCard key={service.id} service={service} onDelete={deleteService} onEdit={editService} pageText={pageText} />
             ))}
           </div>
         </div>
@@ -365,8 +368,8 @@ export default function AdminPage() {
             <div className="w-24 h-24 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <Package className="w-12 h-12 text-blue-400" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-600">لا توجد طلبات</h3>
-            <p className="text-gray-500">ستظهر الطلبات هنا عندما يقوم الزبائن بالحجز</p>
+            <h3 className="text-xl font-semibold text-gray-600">{pageText.noOrders}</h3>
+            <p className="text-gray-500">{pageText.noOrdersHint}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -394,26 +397,26 @@ export default function AdminPage() {
                           </span>
                           <span className="text-sm text-gray-500">|</span>
                           <span className="text-sm text-gray-600">
-                            📧 {order.userEmail || "غير معروف"}
+                            📧 {order.userEmail || pageText.unknown}
                           </span>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
                           <div>
-                            <span className="text-gray-500">📅 التاريخ:</span>
+                            <span className="text-gray-500">📅 {pageText.dateLabel}</span>
                             <span className="mr-2 font-medium">{order.date}</span>
                           </div>
                           <div>
-                            <span className="text-gray-500">📞 الهاتف:</span>
+                            <span className="text-gray-500">📞 {pageText.phoneLabel}</span>
                             <span className="mr-2">{order.phone}</span>
                           </div>
                           <div className="col-span-full">
-                            <span className="text-gray-500">📍 العنوان:</span>
+                            <span className="text-gray-500">📍 {pageText.addressLabel}</span>
                             <span className="mr-2">{order.address}</span>
                           </div>
                           {order.notes && (
                             <div className="col-span-full">
-                              <span className="text-gray-500">📝 ملاحظات:</span>
+                              <span className="text-gray-500">📝 {pageText.notesLabel}</span>
                               <span className="mr-2 text-gray-600">{order.notes}</span>
                             </div>
                           )}
@@ -422,10 +425,10 @@ export default function AdminPage() {
                         {/* Total */}
                         <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
                           <span className="text-lg font-bold text-blue-600">
-                            💰 المجموع: {order.total} درهم
+                            💰 {pageText.totalLabel} {order.total} {pageText.currency}
                           </span>
                           <span className="text-sm text-gray-500">
-  عدد الخدمات: {order.items?.length || 0}
+                            {pageText.serviceCount} {order.items?.length || 0}
 </span>
                         </div>
                       </div>
@@ -437,7 +440,7 @@ export default function AdminPage() {
                           className="flex items-center gap-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium transition"
                         >
                           <Eye className="w-4 h-4" />
-                          {isExpanded ? "إخفاء التفاصيل" : "عرض التفاصيل"}
+                          {isExpanded ? pageText.hideDetails : pageText.showDetails}
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
 
@@ -447,11 +450,11 @@ export default function AdminPage() {
                           disabled={updating === order.id}
                           className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition disabled:opacity-50"
                         >
-                          <option value="Pending">⏳ Pending</option>
-                          <option value="Pickup">📦 Pickup</option>
-                          <option value="Cleaning">🧹 Cleaning</option>
-                          <option value="Ready">✅ Ready</option>
-                          <option value="Delivered">🚚 Delivered</option>
+                          <option value="Pending">⏳ {pageText.statusPending}</option>
+                          <option value="Pickup">📦 {pageText.statusPickup}</option>
+                          <option value="Cleaning">🧹 {pageText.statusCleaning}</option>
+                          <option value="Ready">✅ {pageText.statusReady}</option>
+                          <option value="Delivered">🚚 {pageText.statusDelivered}</option>
                         </select>
 
                         <button
@@ -460,7 +463,7 @@ export default function AdminPage() {
                           className="flex items-center gap-1 rounded-xl bg-red-100 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-200 transition disabled:opacity-50"
                         >
                           <Trash2 className="w-4 h-4" />
-                          حذف
+                          {pageText.deleteOrder}
                         </button>
                       </div>
                     </div>
@@ -471,14 +474,14 @@ export default function AdminPage() {
                     <div className="border-t border-gray-100 bg-gray-50/50 p-6">
                       <h4 className="font-semibold text-sm text-gray-600 mb-3 flex items-center gap-2">
                         <Package className="w-4 h-4" />
-                        تفاصيل الخدمات المطلوبة:
+                        {pageText.itemsTitle}
                       </h4>
                       <div className="space-y-2">
                         <div className="grid grid-cols-4 gap-2 text-xs font-semibold text-gray-500 pb-2 border-b border-gray-200">
-                          <div>الخدمة</div>
-                          <div className="text-center">الكمية</div>
-                          <div className="text-center">السعر للوحدة</div>
-                          <div className="text-left">المجموع</div>
+                          <div>{pageText.serviceLabel}</div>
+                          <div className="text-center">{pageText.quantityLabel}</div>
+                          <div className="text-center">{pageText.unitPrice}</div>
+                          <div className="text-left">{pageText.totalLabel.replace(":", "")}</div>
                         </div>
                         {order.items.map((item, index) => (
                           <div
@@ -493,16 +496,16 @@ export default function AdminPage() {
                               {item.quantity}
                             </div>
                             <div className="text-center text-gray-600">
-                              {item.price} درهم
+                              {item.price} {pageText.currency}
                             </div>
                             <div className="text-left font-semibold text-blue-600">
-                              {item.total} درهم
+                              {item.total} {pageText.currency}
                             </div>
                           </div>
                         ))}
                         <div className="grid grid-cols-4 gap-2 text-sm font-bold pt-2 border-t-2 border-gray-200">
-                          <div className="col-span-3 text-left">المجموع الكلي:</div>
-                          <div className="text-left text-blue-600">{order.total} درهم</div>
+                          <div className="col-span-3 text-left">{pageText.grandTotal}</div>
+                          <div className="text-left text-blue-600">{order.total} {pageText.currency}</div>
                         </div>
                       </div>
                     </div>
@@ -544,10 +547,12 @@ function ServiceCard({
   service,
   onDelete,
   onEdit,
+  pageText,
 }: {
   service: Service;
   onDelete: (id: string) => void;
   onEdit: (service: Service) => void;
+  pageText: Record<string, string>;
 }) {
   return (
     <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100">
@@ -558,13 +563,13 @@ function ServiceCard({
           <p className="text-sm text-gray-500 mt-1">{service.description}</p>
         </div>
         <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700 whitespace-nowrap">
-          {service.price} درهم / {service.unit}
+          {service.price} {pageText.currency} / {service.unit}
         </span>
       </div>
 
       <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
         <span>{service.category}</span>
-        <span>{service.estimatedTime || "ساعتين"}</span>
+        <span>{service.estimatedTime || pageText.twoHours}</span>
       </div>
 
       <div className="mt-4 flex gap-2">
@@ -573,14 +578,14 @@ function ServiceCard({
           onClick={() => onEdit(service)}
           className="flex-1 rounded-xl bg-blue-100 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200"
         >
-          تعديل
+          {pageText.edit}
         </button>
         <button
           type="button"
           onClick={() => onDelete(service.id)}
           className="flex-1 rounded-xl bg-red-100 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-200"
         >
-          حذف
+          {pageText.delete}
         </button>
       </div>
     </div>

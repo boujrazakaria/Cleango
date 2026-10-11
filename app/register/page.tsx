@@ -13,7 +13,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [message, setMessage] = useState("");
+  const [messageKey, setMessageKey] = useState<"accountSuccess" | "orderError" | "">("");
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,10 +25,9 @@ export default function RegisterPage() {
         password
       );
 
-      setMessage(t.accountSuccess);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred";
-      setMessage(errorMessage);
+      setMessageKey("accountSuccess");
+    } catch {
+      setMessageKey("orderError");
     }
   };
 
@@ -85,9 +84,9 @@ export default function RegisterPage() {
 
         </form>
 
-        {message && (
+        {messageKey && (
           <p className="mt-5 text-center text-sm text-gray-600">
-            {message}
+            {t[messageKey]}
           </p>
         )}
 
