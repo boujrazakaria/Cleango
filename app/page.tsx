@@ -4,16 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import {
-  addDoc,
   collection,
   getFirestore,
   onSnapshot,
-  serverTimestamp,
 } from "firebase/firestore";
 import app from "../firebase.ts/firebase";
 import { useLanguage } from "./context/LanguageContext";
 import {
   ArrowRight,
+  Banknote,
   Calendar,
   CheckCircle,
   CreditCard,
@@ -62,7 +61,9 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [step, setStep] = useState<"services" | "checkout">("services");
+  const [step, setStep] = useState<"services" | "checkout" | "payment">("services");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "paypal">("cash");
+  const [deliveryDetails, setDeliveryDetails] = useState({ address: "", phone: "", date: "", notes: "" });
 
   // Auth listener
   useEffect(() => {
@@ -147,9 +148,19 @@ export default function Home() {
   const getTotal = () => cart.reduce((sum, item) => sum + item.total, 0);
   const getTotalItems = () => cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const handleSubmitOrder = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const continueToPayment = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    setDeliveryDetails({
+      address: data.get("address") as string,
+      phone: data.get("phone") as string,
+      date: data.get("date") as string,
+      notes: data.get("notes") as string,
+    });
+    setStep("payment");
+  };
 
+  const handleSubmitOrder = async () => {
     if (!user) {
       alert(pageText.loginToOrder);
       return;
@@ -161,32 +172,37 @@ export default function Home() {
     }
 
     setIsSubmitting(true);
-    const form = e.currentTarget;
-    const data = new FormData(form);
-
-    const orderData = {
-      userId: user.uid,
-      userEmail: user.email,
-      items: cart,
-      total: getTotal(),
-      status: "Pending",
-      date: data.get("date") as string,
-      address: data.get("address") as string,
-      phone: data.get("phone") as string,
-      notes: data.get("notes") as string,
-      createdAt: serverTimestamp(),
-    };
-
     try {
-      const docRef = await addDoc(collection(db, "orders"), orderData);
-      alert(`✅ ${pageText.orderSuccess}\n#${docRef.id.slice(0, 8)}\n${t.total}: ${getTotal()} DH`);
+      const token = await user.getIdToken();
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          items: cart.map((item) => ({ serviceId: item.serviceId, quantity: item.quantity })),
+          details: deliveryDetails,
+          paymentMethod,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || pageText.orderFailed);
+
+      if (paymentMethod === "paypal") {
+        if (typeof result.approvalUrl !== "string") throw new Error(pageText.orderFailed);
+        window.location.assign(result.approvalUrl);
+        return;
+      }
+
+      alert(`✅ ${pageText.orderSuccess}\n#${String(result.orderId).slice(0, 8)}\n${t.total}: ${getTotal()} DH`);
       setCart([]);
       setStep("services");
-      form.reset();
+      setDeliveryDetails({ address: "", phone: "", date: "", notes: "" });
       setShowForm(false);
     } catch (error) {
       console.error("Error creating order:", error);
-      alert(pageText.orderFailed);
+      alert(error instanceof Error ? error.message : pageText.orderFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -270,15 +286,15 @@ export default function Home() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-blue-700">
-                  {step === "services" ? `📋 ${pageText.chooseServices}` : `📝 ${pageText.reviewOrder}`}
+                  {step === "services" ? `📋 ${pageText.chooseServices}` : step === "checkout" ? `📝 ${pageText.reviewOrder}` : `💳 ${pageText.paymentMethod}`}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {step === "services" ? pageText.chooseServicesHelp : pageText.reviewOrderHelp}
+                  {step === "services" ? pageText.chooseServicesHelp : step === "checkout" ? pageText.reviewOrderHelp : pageText.paymentPayPalDescription}
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                {step === "checkout" && (
-                  <button onClick={() => setStep("services")} className="text-sm text-blue-600 font-medium">
+                {step !== "services" && (
+                  <button onClick={() => setStep(step === "payment" ? "checkout" : "services")} className="text-sm text-blue-600 font-medium">
                     ← {pageText.back}
                   </button>
                 )}
@@ -301,11 +317,18 @@ export default function Home() {
                 <span className="text-sm font-medium">{pageText.stepServices}</span>
               </div>
               <div className="flex-1 h-0.5 bg-gray-200">
-                <div className={`h-full bg-blue-600 transition-all ${step === "checkout" ? "w-full" : "w-1/2"}`}></div>
+                <div className={`h-full bg-blue-600 transition-all ${step !== "services" ? "w-full" : "w-1/2"}`}></div>
               </div>
               <div className={`flex items-center gap-2 ${step === "checkout" ? "text-blue-600" : "text-gray-400"}`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === "checkout" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>2</div>
-                <span className="text-sm font-medium">{pageText.stepConfirmation}</span>
+                <span className="text-sm font-medium">{pageText.stepDeliveryInfo}</span>
+              </div>
+              <div className="flex-1 h-0.5 bg-gray-200">
+                <div className={`h-full bg-blue-600 transition-all ${step === "payment" ? "w-full" : "w-1/2"}`}></div>
+              </div>
+              <div className={`flex items-center gap-2 ${step === "payment" ? "text-blue-600" : "text-gray-400"}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === "payment" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>3</div>
+                <span className="text-sm font-medium">{pageText.stepPayment}</span>
               </div>
             </div>
 
@@ -367,7 +390,7 @@ export default function Home() {
                   )}
                 </div>
               </div>
-            ) : (
+            ) : step === "checkout" ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-gray-50 rounded-2xl p-6">
                   <h3 className="font-semibold text-lg mb-4">📋 {pageText.orderSummary}</h3>
@@ -392,16 +415,49 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-4">📍 {pageText.deliveryInfo}</h3>
-                  <form className="space-y-4" onSubmit={handleSubmitOrder}>
-                    <div className="relative"><MapPin className="absolute right-3 top-3.5 w-5 h-5 text-gray-400" /><input type="text" name="address" placeholder={pageText.deliveryAddress} required className="w-full rounded-xl border border-gray-200 pr-10 p-3 outline-none focus:ring-2 focus:ring-blue-500" /></div>
-                    <div className="relative"><Phone className="absolute right-3 top-3.5 w-5 h-5 text-gray-400" /><input type="tel" name="phone" placeholder={pageText.phonePlaceholder} required className="w-full rounded-xl border border-gray-200 pr-10 p-3 outline-none focus:ring-2 focus:ring-blue-500" /></div>
-                    <div className="relative"><Calendar className="absolute right-3 top-3.5 w-5 h-5 text-gray-400" /><input type="date" name="date" required className="w-full rounded-xl border border-gray-200 pr-10 p-3 outline-none focus:ring-2 focus:ring-blue-500" /></div>
-                    <div className="relative"><MessageSquare className="absolute right-3 top-3.5 w-5 h-5 text-gray-400" /><textarea name="notes" placeholder={pageText.additionalNotes} className="w-full rounded-xl border border-gray-200 pr-10 p-3 h-20 resize-none outline-none focus:ring-2 focus:ring-blue-500" /></div>
-                    <button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
-                      {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" /> {pageText.processing}</> : <><CreditCard className="w-5 h-5" /> {pageText.confirmOrder} ({getTotal()} DH)</>}
+                  <form className="space-y-4" onSubmit={continueToPayment}>
+                    <div className="relative"><MapPin className="absolute right-3 top-3.5 w-5 h-5 text-gray-400" /><input type="text" name="address" value={deliveryDetails.address} onChange={(event) => setDeliveryDetails({ ...deliveryDetails, address: event.target.value })} placeholder={pageText.deliveryAddress} required className="w-full rounded-xl border border-gray-200 pr-10 p-3 outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                    <div className="relative"><Phone className="absolute right-3 top-3.5 w-5 h-5 text-gray-400" /><input type="tel" name="phone" value={deliveryDetails.phone} onChange={(event) => setDeliveryDetails({ ...deliveryDetails, phone: event.target.value })} placeholder={pageText.phonePlaceholder} required className="w-full rounded-xl border border-gray-200 pr-10 p-3 outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                    <div className="relative"><Calendar className="absolute right-3 top-3.5 w-5 h-5 text-gray-400" /><input type="date" name="date" value={deliveryDetails.date} onChange={(event) => setDeliveryDetails({ ...deliveryDetails, date: event.target.value })} required className="w-full rounded-xl border border-gray-200 pr-10 p-3 outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                    <div className="relative"><MessageSquare className="absolute right-3 top-3.5 w-5 h-5 text-gray-400" /><textarea name="notes" value={deliveryDetails.notes} onChange={(event) => setDeliveryDetails({ ...deliveryDetails, notes: event.target.value })} placeholder={pageText.additionalNotes} className="w-full rounded-xl border border-gray-200 pr-10 p-3 h-20 resize-none outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                    <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
+                      <ArrowRight className="w-5 h-5" /> {pageText.continue} · {pageText.stepPayment}
                     </button>
                   </form>
                 </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <section className="rounded-2xl bg-gray-50 p-6">
+                  <h3 className="mb-4 text-lg font-semibold">{pageText.orderSummary}</h3>
+                  <dl className="space-y-3 text-sm">
+                    <div className="flex justify-between gap-4"><dt className="text-gray-500">{pageText.deliveryAddress}</dt><dd className="text-end font-medium">{deliveryDetails.address}</dd></div>
+                    <div className="flex justify-between gap-4"><dt className="text-gray-500">{pageText.phonePlaceholder}</dt><dd className="font-medium">{deliveryDetails.phone}</dd></div>
+                    <div className="flex justify-between gap-4"><dt className="text-gray-500">{pageText.date}</dt><dd className="font-medium">{deliveryDetails.date}</dd></div>
+                  </dl>
+                  <div className="mt-5 flex justify-between border-t pt-4 text-lg font-bold">
+                    <span>{t.total}</span><span className="text-blue-700">{getTotal()} MAD</span>
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="mb-4 text-lg font-semibold">{pageText.paymentMethod}</h3>
+                  <div className="space-y-3">
+                    <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${paymentMethod === "cash" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white"}`}>
+                      <input type="radio" name="paymentMethod" value="cash" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} className="mt-1 accent-blue-700" />
+                      <Banknote className="h-5 w-5 shrink-0 text-blue-700" />
+                      <span><span className="block font-semibold text-gray-900">{pageText.paymentCash}</span><span className="mt-1 block text-sm text-gray-500">{pageText.paymentCashDescription}</span></span>
+                    </label>
+                    <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${paymentMethod === "paypal" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white"}`}>
+                      <input type="radio" name="paymentMethod" value="paypal" checked={paymentMethod === "paypal"} onChange={() => setPaymentMethod("paypal")} className="mt-1 accent-blue-700" />
+                      <CreditCard className="h-5 w-5 shrink-0 text-blue-700" />
+                      <span><span className="block font-semibold text-gray-900">{pageText.paymentPayPal}</span><span className="mt-1 block text-sm text-gray-500">{pageText.paymentPayPalDescription}</span></span>
+                    </label>
+                  </div>
+                  <button type="button" onClick={handleSubmitOrder} disabled={isSubmitting} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 py-3 font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60">
+                    {isSubmitting ? <><Loader2 className="h-5 w-5 animate-spin" />{pageText.processing}</> : paymentMethod === "paypal" ? <><CreditCard className="h-5 w-5" />{pageText.paymentContinue}</> : <><Banknote className="h-5 w-5" />{pageText.paymentCash} · {getTotal()} MAD</>}
+                  </button>
+                </section>
               </div>
             )}
           </div>

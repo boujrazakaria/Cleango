@@ -31,7 +31,8 @@ import {
   RefreshCw,
   Eye,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Users,
 } from "lucide-react";
 
 const db = getFirestore(app);
@@ -317,13 +318,22 @@ export default function AdminPage() {
                 <p className="text-sm text-gray-500">{pageText.adminSubtitle}</p>
               </div>
             </div>
-            <button
-              onClick={() => auth.signOut()}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm font-medium transition"
-            >
-              <LogOut className="w-4 h-4" />
-              {t.logout}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/drivers"
+                className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                <Users className="h-4 w-4" />
+                {pageText.driversTitle}
+              </Link>
+              <button
+                onClick={() => auth.signOut()}
+                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm font-medium transition"
+              >
+                <LogOut className="w-4 h-4" />
+                {t.logout}
+              </button>
+            </div>
           </div>
         </div>
       </header>

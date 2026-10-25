@@ -1,16 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
+import { FormEvent, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import app from "../../firebase.ts/firebase";
 import { useLanguage } from "../context/LanguageContext";
 
-const db = getFirestore(app);
-
 export default function DriverRegisterPage() {
-  const router = useRouter();
   const { t, dir } = useLanguage();
   const text = t.pages;
   const [name, setName] = useState("");
@@ -20,12 +14,6 @@ export default function DriverRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => {
-    if (redirectTimer.current) clearTimeout(redirectTimer.current);
-  }, []);
-
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage("");
@@ -43,21 +31,32 @@ export default function DriverRegisterPage() {
 
     setLoading(true);
     try {
-      await addDoc(collection(db, "drivers"), {
-        name: driverName,
-        phone: driverPhone,
-        vehicle: driverVehicle,
-        accessCode: driverAccessCode,
-        status: "pending",
-        createdAt: serverTimestamp(),
+      const response = await fetch("/api/drivers/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: driverName,
+          phone: driverPhone,
+          vehicle: driverVehicle,
+          accessCode: driverAccessCode,
+        }),
       });
+
+      if (response.status === 403) {
+        setError(text.driverInvalidAccessCode);
+        return;
+      }
+      if (response.status === 503) {
+        setError(text.driverRegistrationNotConfigured);
+        return;
+      }
+      if (!response.ok) throw new Error("Registration request failed.");
 
       setMessage(text.driverRegisterSuccess);
       setName("");
       setPhone("");
       setVehicle("");
       setAccessCode("");
-      redirectTimer.current = setTimeout(() => router.replace("/drivers"), 1500);
     } catch (registrationError) {
       console.error("Failed to submit driver registration:", registrationError);
       setError(text.driverRegisterError);
