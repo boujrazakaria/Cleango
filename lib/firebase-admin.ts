@@ -6,10 +6,21 @@ function getAdminApp() {
   const existingApp = getApps()[0];
   if (existingApp) return existingApp;
 
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!serviceAccountJson) throw new Error("Missing Firebase Admin credentials.");
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
-  return initializeApp({ credential: cert(JSON.parse(serviceAccountJson)) });
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error("Missing Firebase Admin credentials in environment variables.");
+  }
+
+  return initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
+  });
 }
 
 export function getAdminAuth() {
